@@ -2,7 +2,11 @@
 
 SLS_DIR ?= $(shell pwd)
 
+# Default to debug flags
+SLS_FFLAGS ?= -O0 -g -Wall
+
 SLS_SRCDIR = $(SLS_DIR)/src/
+
 
 # Out-of-source build directories
 SLS_INCDIR = $(SLS_DIR)/build/include/
@@ -12,14 +16,19 @@ SLS_EXADIR = $(SLS_DIR)/build/examples/
 
 vpath %.f90 $(SLS_SRCDIR)
 
-SLS_F90_SRCS = SLSpectra_Stencil \
-   	       SLSpectra_AdjacencyGraph 
+SLS_F90_SRCS = SLSpectra_Precision \
+	       SLSpectra_Stencil \
+   	       SLSpectra_AdjacencyGraph \
+	       SLSpectra_Mesh 
 
 SLS_LIBS = slspectra
 
 SLS_OBJS = $(addprefix $(SLS_SRCDIR), $(addsuffix .f.o, $(SLS_F90_SRCS)))
 SLS_LIB_OBJS = $(addprefix $(SLS_LIBDIR)lib, $(addsuffix .a, $(SLS_LIBS)))
 SLS_BUILDDIRS = $(SLS_INCDIR) $(SLS_LIBDIR) $(SLS_BINDIR) $(SLS_EXADIR) $(SLS_TESTDIR)
+
+# Add preprocessing to flags (Assumes gnu compilers)
+SLS_FFLAGS += -cpp
 
 
 slspectra: $(SLS_LIB_OBJS)

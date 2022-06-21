@@ -4,19 +4,30 @@
 ! ////////////////////////////////////////////////////////////////////////////////////////////////
 
  
-MODULE XEModes_Stencil
+MODULE SLSpectra_Stencil
 
 
 IMPLICIT NONE
 
-   TYPE, ABSTRACT :: Stencil
-      INTEGER              :: nPoints ! Number of points in the stencil
-      INTEGER, ALLOCATABLE :: neighbors(:,:) ! indices of the neighbors relative to the center
 
-      CONTAINS 
+   TYPE, ABSTRACT :: Stencil
+     !! The Stencil class is an abstract class that lays out the structure for defining a 
+     !! discrete computational stencil. The Build method for this abstract class is deferred
+     !! intentionally. The Free method is provided so that you don't have to add your own
+     !! Free method for a type extended class.
+     !!
+     !! Adding a specific stencil requires that you declare a type extension of
+     !! the Stencil class and then concretize the Build type bound procedure.
+     !! When using a specific stencil, you simply have to declare your object as one of the
+     !! concretized types.
+     !!
+     INTEGER              :: nPoints ! Number of points in the stencil
+     INTEGER, ALLOCATABLE :: neighbors(:,:) ! indices of the neighbors relative to the center
+
+     CONTAINS 
   
-      PROCEDURE(Build_Stencil), DEFERRED :: Build
-      PROCEDURE :: Trash => Trash_Stencil
+     PROCEDURE(Build_Stencil), DEFERRED :: Build
+     PROCEDURE :: Free => Free_Stencil
 
    END TYPE Stencil
 
@@ -44,7 +55,7 @@ IMPLICIT NONE
 
 CONTAINS
 
- SUBROUTINE Trash_Stencil( this )
+ SUBROUTINE Free_Stencil( this )
 
    IMPLICIT NONE
    CLASS( Stencil ),INTENT(inout) :: this
@@ -52,7 +63,7 @@ CONTAINS
    DEALLOCATE( this % neighbors )
    this % nPoints = -1
 
- END SUBROUTINE Trash_Stencil
+ END SUBROUTINE Free_Stencil
 
 
  SUBROUTINE Build_Laplacian5OStencil( this ) 
@@ -92,4 +103,4 @@ CONTAINS
 
  END SUBROUTINE Build_Laplacian5OStencil
 
-END MODULE XEModes_Stencil
+END MODULE SLSpectra_Stencil
