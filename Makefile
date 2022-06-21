@@ -1,47 +1,48 @@
 
 
-XEMODES_DIR ?= $(shell pwd)
+SLS_DIR ?= $(shell pwd)
 
-XEMODES_SRCDIR = $(XEMODES_DIR)/src/
+SLS_SRCDIR = $(SLS_DIR)/src/
 
 # Out-of-source build directories
-XEMODES_INCDIR = $(XEMODES_DIR)/build/include/
-XEMODES_LIBDIR = $(XEMODES_DIR)/build/lib/
-XEMODES_BINDIR = $(XEMODES_DIR)/build/bin/
-XEMODES_EXADIR = $(XEMODES_DIR)/build/examples/
+SLS_INCDIR = $(SLS_DIR)/build/include/
+SLS_LIBDIR = $(SLS_DIR)/build/lib/
+SLS_BINDIR = $(SLS_DIR)/build/bin/
+SLS_EXADIR = $(SLS_DIR)/build/examples/
 
-vpath %.f90 $(XEMODES_SRCDIR)
+vpath %.f90 $(SLS_SRCDIR)
 
-XEMODES_F90_SRCS = XEModes_Stencil 
+SLS_F90_SRCS = SLSpectra_Stencil \
+   	       SLSpectra_AdjacencyGraph 
 
-XEMODES_LIBS = xemodes
+SLS_LIBS = slspectra
 
-XEMODES_OBJS = $(addprefix $(XEMODES_SRCDIR), $(addsuffix .f.o, $(XEMODES_F90_SRCS)))
-XEMODES_LIB_OBJS = $(addprefix $(XEMODES_LIBDIR)lib, $(addsuffix .a, $(XEMODES_LIBS)))
-XEMODES_BUILDDIRS = $(XEMODES_INCDIR) $(XEMODES_LIBDIR) $(XEMODES_BINDIR) $(XEMODES_EXADIR) $(XEMODES_TESTDIR)
-
-
-xemodes: $(XEMODES_LIB_OBJS)
+SLS_OBJS = $(addprefix $(SLS_SRCDIR), $(addsuffix .f.o, $(SLS_F90_SRCS)))
+SLS_LIB_OBJS = $(addprefix $(SLS_LIBDIR)lib, $(addsuffix .a, $(SLS_LIBS)))
+SLS_BUILDDIRS = $(SLS_INCDIR) $(SLS_LIBDIR) $(SLS_BINDIR) $(SLS_EXADIR) $(SLS_TESTDIR)
 
 
-$(XEMODES_LIBDIR)libxemodes.a: $(XEMODES_OBJS)
+slspectra: $(SLS_LIB_OBJS)
+
+
+$(SLS_LIBDIR)libslspectra.a: $(SLS_OBJS)
 	rm -f $@
 	$(AR) -cq $@ $^
 
-$(XEMODES_SRCDIR)%.f.o: %.f90
-	$(FC) -J$(XEMODES_INCDIR) $(XEMODES_FFLAGS) $(XEMODES_FLIBS) -c $< -o $@
+$(SLS_SRCDIR)%.f.o: %.f90
+	$(FC) -J$(SLS_INCDIR) $(SLS_FFLAGS) $(SLS_FLIBS) -c $< -o $@
 
 clean:
-	rm -f $(XEMODES_BINDIR)*
-	rm -f $(XEMODES_LIBDIR)*.a
-	rm -f $(XEMODES_MODDIR)*.mod
-	rm -f $(XEMODES_SRCDIR)*.o
-	rm -f $(XEMODES_EXASRCDIR)*.o
+	rm -f $(SLS_BINDIR)*
+	rm -f $(SLS_LIBDIR)*.a
+	rm -f $(SLS_MODDIR)*.mod
+	rm -f $(SLS_SRCDIR)*.o
+	rm -f $(SLS_EXASRCDIR)*.o
 
 # Dependency on build tree existence
-$(XEMODES_OBJS): | $(XEMODES_BUILDDIRS)
+$(SLS_OBJS): | $(SLS_BUILDDIRS)
 
-$(XEMODES_BUILDDIRS):
+$(SLS_BUILDDIRS):
 	mkdir -p $@
 
 .PHONY: clean
