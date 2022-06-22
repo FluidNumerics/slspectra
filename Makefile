@@ -18,8 +18,9 @@ vpath %.f90 $(SLS_SRCDIR)
 
 SLS_F90_SRCS = SLSpectra_Precision \
 	       SLSpectra_Stencil \
+	       SLSpectra_Mesh \
    	       SLSpectra_AdjacencyGraph \
-	       SLSpectra_Mesh 
+	       SLSpectra_Generators 
 
 SLS_LIBS = slspectra
 

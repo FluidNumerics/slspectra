@@ -4,6 +4,7 @@
 MODULE SLSpectra_AdjacencyGraph
 
 USE SLSpectra_Stencil
+USE SLSpectra_Mesh
 
 IMPLICIT NONE
 
@@ -17,19 +18,20 @@ IMPLICIT NONE
 
       CONTAINS
 
-      GENERIC,PUBLIC :: Build => Build_AdjacencyGraph 
+      GENERIC,PUBLIC :: Build => Build_AdjacencyGraph, &
+                                 BuildFromMeshAndL5OStencil_AdjacencyGraph 
+                                 
       PROCEDURE, PRIVATE :: Build_AdjacencyGraph
-!      PROCEDURE, PRIVATE :: BuildFromMeshAndStencil_AdjacencyGraph
+      PROCEDURE, PRIVATE :: BuildFromMeshAndL5OStencil_AdjacencyGraph
+      
       PROCEDURE :: Free => Free_AdjacencyGraph      
 
-!      PROCEDURE :: BuildFromMeshAndStencil => BuildFromMeshAndStencil_AdjacencyGraph
-      PROCEDURE :: GreedyColoring       => GreedyColoring_AdjacencyGraph
+      PROCEDURE :: GreedyColoring => GreedyColoring_AdjacencyGraph
     
 !      PROCEDURE :: Write_HDF5
 !      PROCEDURE :: Read_HDF5
 
    END TYPE AdjacencyGraph
-
 
 CONTAINS
 
@@ -63,60 +65,66 @@ CONTAINS
 
  END SUBROUTINE Build_AdjacencyGraph
 
-! SUBROUTINE BuildFromMeshAndStencil_AdjacencyGraph( this, mesh, relStencil )
-! ! Given a Mesh and a Stencil, this routine constructs an adjacency
-! ! graph using only the wet points in the mesh.
-!
-!    IMPLICIT NONE
-!    CLASS( AdjacencyGraph ), INTENT(inout) :: this
-!    TYPE( Mesh ), INTENT(in)               :: mesh
-!    TYPE( Stencil ), INTENT(in)            :: relStencil
-!    ! Local
-!    INTEGER :: i, j, k, e1, e2, m
-!    INTEGER :: this_i, this_j, this_k, true_i, true_j
-!    REAL(prec) :: t1, t2
-!
-!       PRINT*, ' S/R BuildFromMeshAndStencil : Start! '
-!
-!       CALL CPU_TIME( t1 )
-!
-!       CALL this % Build( mesh % nDOF, relStencil % nPoints ) 
-!
-!       DO e1 = 1, mesh % nDOF
-!
-!          i = mesh % DOFtoIJK(1,e1)
-!          j = mesh % DOFtoIJK(2,e1)
-!          k = mesh % DOFtoIJK(3,e1)
-!
-!          DO m = 1, relStencil % nPoints ! Loop over the stencil points
-!   
-!             ! Find the i,j,k indices for this point in the stencil around e1.
-!             this_i = i + relStencil % relativeNeighbors(1,m)
-!             this_j = j + relStencil % relativeNeighbors(2,m)
-!             this_k = k + relStencil % relativeNeighbors(3,m)
-! 
-!             IF( true_i > 0 .AND. true_i <= mesh % nX .AND. &
-!                 true_j > 0 .AND. true_j <= mesh % nY .AND. &
-!                 this_k > 0 .AND. this_k <= mesh % nZ ) THEN
-!
-!                ! Obtain the "degree of freedom" index for this neighbor 
-!                e2 = mesh % ijkToDOF( true_i, true_j, this_k )
-!
-!                IF( e2 /= e1 .AND. e2 /= 0 )THEN
-!                   this % valence(e1) = this % valence(e1) + 1
-!                   this % neighbors(this % valence(e1), e1) = e2
-!                ENDIF
-!
-!             ENDIF
-!
-!          ENDDO
-!
-!      ENDDO
-!
-!      CALL CPU_TIME( t2 )
-!      PRINT *,' S/R BuildFromMeshAndStencil : Completed in ', t2-t1, ' seconds.'
-!
-! END SUBROUTINE BuildFromMeshAndStencil_AdjacencyGraph
+ SUBROUTINE BuildFromMeshAndL5OStencil_AdjacencyGraph( this, modelMesh, relStencil )
+ ! Given a Mesh and a 5-point Laplacian overlap stencil, this routine constructs an adjacency
+ ! graph using only the wet points in the mesh.
+    IMPLICIT NONE
+    CLASS( AdjacencyGraph ), INTENT(inout) :: this
+    TYPE( Mesh ), INTENT(in)  :: modelMesh
+    TYPE( Laplacian5OStencil ), INTENT(in) :: relStencil
+    ! Local
+    INTEGER :: i, j,  e1, e2, m
+    INTEGER :: ni, nj
+    REAL(prec) :: t1, t2
+
+       PRINT*, ' S/R BuildFromMeshAndStencil : Start! '
+
+       CALL CPU_TIME( t1 )
+
+      this % nDOF       = modelMesh % nDOF
+      this % maxValence = relStencil % nPoints
+      this % nColors    = 0
+
+      ALLOCATE( this % valence(1:modelMesh % nDOF), & 
+                this % color(1:modelMesh % nDOF), &
+                this % neighbors(1:this % maxValence,1:modelMesh % nDOF) )
+
+      this % valence = 0
+      this % color = 0
+      this % neighbors = 0
+      
+       DO e1 = 1, modelMesh % nDOF
+
+          i = modelMesh % DOFtoIJ(1,e1)
+          j = modelMesh % DOFtoIJ(2,e1)
+
+          DO m = 1, relStencil % nPoints ! Loop over the stencil points
+   
+             ! Find the i,j indices for this point in the stencil around e1.
+             ni = i + relStencil % neighbors(1,m)
+             nj = j + relStencil % neighbors(2,m)
+ 
+             IF( ni > 0 .AND. ni <= modelMesh % nX .AND. &
+                 nj > 0 .AND. nj <= modelMesh % nY ) THEN
+
+                ! Obtain the "degree of freedom" index for this neighbor 
+                e2 = modelMesh % ijToDOF( ni, nj )
+
+                IF( e2 /= e1 .AND. e2 /= 0 )THEN
+                   this % valence(e1) = this % valence(e1) + 1
+                   this % neighbors(this % valence(e1), e1) = e2
+                ENDIF
+
+             ENDIF
+
+          ENDDO
+
+      ENDDO
+
+      CALL CPU_TIME( t2 )
+      PRINT *,' S/R BuildFromMeshAndStencil : Completed in ', t2-t1, ' seconds.'
+
+ END SUBROUTINE BuildFromMeshAndL5OStencil_AdjacencyGraph
 
  SUBROUTINE Free_AdjacencyGraph( this )
  ! This subroutine frees memory held by the allocatable attributes of the

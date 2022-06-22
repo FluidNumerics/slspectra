@@ -3,15 +3,15 @@ MODULE SLSpectra_Mesh
 USE SLSpectra_Precision
  IMPLICIT NONE
 
-   TYPE :: Mesh
+   TYPE Mesh
       INTEGER                 :: nX, nY, nZ, nDOF
 
       ! Derived quantities
-      REAL(prec), ALLOCATABLE :: tracermask(:,:,:)
+      REAL(prec), ALLOCATABLE :: tracermask(:,:)
       REAL(prec), ALLOCATABLE :: x(:,:)
       REAL(prec), ALLOCATABLE :: y(:,:)
-      REAL(prec), ALLOCATABLE :: z(:)
-      INTEGER, ALLOCATABLE    :: DOFtoIJK(:,:), IJKtoDOF(:,:,:)
+      REAL(prec) :: dx, dy
+      INTEGER, ALLOCATABLE    :: DOFtoIJ(:,:), IJtoDOF(:,:)
 
        
        CONTAINS
@@ -26,9 +26,14 @@ USE SLSpectra_Precision
 
     END TYPE Mesh
 
-    REAL(prec), PARAMETER, PRIVATE :: wetValue = 1.0_prec
-    REAL(prec), PARAMETER, PRIVATE :: dryValue = 0.0_prec
-    REAL(prec), PARAMETER, PRIVATE :: fillValue = -99999.0_prec
+    !TYPE, EXTENDS(Mesh) :: MITgcmMesh
+    !  INTEGER :: filePrecision
+    !  REAL(prec), ALLOCATABLE :: 
+    !END TYPE MITgcmMesh
+    
+    REAL(prec), PARAMETER :: SLSpectra_wetValue = 1.0_prec
+    REAL(prec), PARAMETER :: SLSpectra_dryValue = 0.0_prec
+    REAL(prec), PARAMETER :: SLSpectra_fillValue = -99999.0_prec
 
 
  CONTAINS
@@ -51,11 +56,10 @@ USE SLSpectra_Precision
       this % nY = nY
       this % nZ = nZ 
       ! Tracer mesh
-      ALLOCATE( this % tracermask(1:nX,1:nY,1:nZ), &
-                this % IJKtoDOF(1:nX,1:nY,1:nZ), &
+      ALLOCATE( this % tracermask(1:nX,1:nY), &
+                this % IJtoDOF(1:nX,1:nY), &
                 this % x(1:nX,1:nY), &
-                this % y(1:nX,1:nY), &
-                this % z(1:nZ))
+                this % y(1:nX,1:nY))
 
       
  END SUBROUTINE Build_Mesh
@@ -71,13 +75,12 @@ USE SLSpectra_Precision
       DEALLOCATE( this % tracermask )
       DEALLOCATE( this % x )
       DEALLOCATE( this % y )
-      DEALLOCATE( this % z )
 
-      IF( ALLOCATED( this % DOFtoIJK ) )THEN
-         DEALLOCATE( this % DOFtoIJK )
+      IF( ALLOCATED( this % DOFtoIJ ) )THEN
+         DEALLOCATE( this % DOFtoIJ )
       ENDIF
-      IF( ALLOCATED( this % IJKtoDOF ) )THEN
-         DEALLOCATE( this % IJKtoDOF )
+      IF( ALLOCATED( this % IJtoDOF ) )THEN
+         DEALLOCATE( this % IJtoDOF )
       ENDIF
 
  END SUBROUTINE Free_Mesh
@@ -91,12 +94,13 @@ USE SLSpectra_Precision
    IMPLICIT NONE
    CLASS(Mesh), INTENT(inout) :: this
    ! Local
-   INTEGER    :: i,j,k
-   REAL(prec) :: dx, dy, dz
+   INTEGER    :: i,j
+   REAL(prec) :: dx, dy
 
      dx = 1.0_prec/REAL(this % nX,prec)
      dy = 1.0_prec/REAL(this % nY,prec)
-     dz = 1.0_prec/REAL(this % nZ,prec)
+     this % dx = dx
+     this % dy = dy
 
      DO j = 1, this % nY
        DO i = 1, this % nX
@@ -105,25 +109,17 @@ USE SLSpectra_Precision
        ENDDO
      ENDDO
 
-     DO k = 1, this % nZ
-       this % z(k) = (REAL(k,prec) + 0.5_prec)*dz
-     ENDDO
-
-     this % tracerMask = wetValue
+     this % tracerMask = SLSpectra_wetValue
      ! South and North Boundaries
-     DO k = 1, this % nZ
-       DO i = 1, this % nX
-         this % tracermask(i,1,k) = dryValue
-         this % tracermask(i,this % nY,k) = dryValue
-       ENDDO
+     DO i = 1, this % nX
+       this % tracermask(i,1) = SLSpectra_dryValue
+       this % tracermask(i,this % nY) = SLSpectra_dryValue
      ENDDO
 
      ! East and West Boundaries
-     DO k = 1, this % nZ
-       DO j = 1, this % nY
-         this % tracermask(1,j,k) = dryValue
-         this % tracermask(this % nX,j,k) = dryValue
-       ENDDO
+     DO j = 1, this % nY
+       this % tracermask(1,j) = SLSpectra_dryValue
+       this % tracermask(this % nX,j) = SLSpectra_dryValue
      ENDDO
 
      CALL this % ConstructWetPointMap()
@@ -134,81 +130,74 @@ USE SLSpectra_Precision
    IMPLICIT NONE
    CLASS( Mesh ), INTENT(inout) :: this
    ! LOCAL
-   INTEGER :: i, j, k, nDOF
+   INTEGER :: i, j, nDOF
 
 
      ! Count the number of wet-points and set the IJK to DOF mapping
      nDOF = 0
-     DO k = 1, this % nZ
-       DO j = 1, this % nY
-         DO i = 1, this % nX
-           IF( this % tracerMask(i,j,k) == wetValue )THEN
-              nDOF = nDOF + 1
-              this % IJKtoDOF(i,j,k) = nDOF
-           ENDIF
-         ENDDO
+     DO j = 1, this % nY
+       DO i = 1, this % nX
+         IF( this % tracerMask(i,j) == SLSpectra_wetValue )THEN
+           nDOF = nDOF + 1
+           this % IJtoDOF(i,j) = nDOF
+         ENDIF
        ENDDO
      ENDDO
 
      PRINT*, "Number of DOF : ", nDOF
 
-     ALLOCATE( this % DOFtoIJK(1:3,1:nDOF) ) 
+     ALLOCATE( this % DOFtoIJ(1:2,1:nDOF) ) 
      this % nDOF = nDOF
 
-     ! Now we can set the DOF to IJK mapping
+     ! Now we can set the DOF to IJ mapping
      nDOF = 0
      DO j = 1, this % nY
-        DO i = 1, this % nX
-           DO k = 1, this % nZ
-              IF( this % tracerMask(i,j,k) == wetValue )THEN
-                 nDOF = nDOF + 1
-                 this % DOFtoIJK(1,nDOF) = i
-                 this % DOFtoIJK(2,nDOF) = j
-                 this % DOFtoIJK(3,nDOF) = k
-              ENDIF
-           ENDDO
-        ENDDO
+       DO i = 1, this % nX
+         IF( this % tracerMask(i,j) == SLSpectra_wetValue )THEN
+           nDOF = nDOF + 1
+           this % DOFtoIJ(1,nDOF) = i
+           this % DOFtoIJ(2,nDOF) = j
+         ENDIF
+       ENDDO
      ENDDO
 
  END SUBROUTINE ConstructWetPointMap
 
- FUNCTION GridMap( this, dofArray ) RESULT( ijkArray )
+ FUNCTION GridMap( this, dofArray ) RESULT( ijArray )
    IMPLICIT NONE
    CLASS( Mesh ) :: this
    REAL(prec)    :: dofArray(1:this % nDOF)
-   REAL(prec)    :: ijkArray(1:this % nX, 1:this % nY, 1:this % nZ)
+   REAL(prec)    :: ijArray(1:this % nX, 1:this % nY)
    ! Local
-   INTEGER :: i, j, k, l
+   INTEGER :: i, j, l
 
 
-      ijkArray = fillValue
+      ijArray = SLSpectra_fillValue
       DO l = 1, this % nDof
 
-         i = this % DOFtoIJK(1,l)
-         j = this % DOFtoIJK(2,l)
-         k = this % DOFtoIJK(3,l)
+         i = this % DOFtoIJ(1,l)
+         j = this % DOFtoIJ(2,l)
 
-         ijkArray(i,j,k) = dofArray(l)
+         ijArray(i,j) = dofArray(l)
 
       ENDDO
 
  END FUNCTION GridMap
 
- FUNCTION FlatMap( this, ijkArray ) RESULT( dofArray )
+ FUNCTION FlatMap( this, ijArray ) RESULT( dofArray )
    IMPLICIT NONE
    CLASS( Mesh ) :: this
-   REAL(prec)    :: ijkArray(1:this % nX, 1:this % nY, 1:this % nZ)
+   REAL(prec)    :: ijArray(1:this % nX, 1:this % nY)
    REAL(prec)    :: dofArray(1:this % nDOF)
    ! Local
-   INTEGER :: i, j, k, l
+   INTEGER :: i, j, l
 
       DO l = 1, this % nDof
 
-         i = this % DOFtoIJK(1,l)
-         j = this % DOFtoIJK(2,l)
-         k = this % DOFtoIJK(3,l)
+         i = this % DOFtoIJ(1,l)
+         j = this % DOFtoIJ(2,l)
 
-         dofArray(l) = ijkArray(i,j,k)
+         dofArray(l) = ijArray(i,j)
 
       ENDDO
 

@@ -36,7 +36,7 @@ IMPLICIT NONE
      !! This stencil is equivalent to the stencil obtained by
      !! applying the 5-point laplacian operator twice on
      !! an impulse field
-
+    
      CONTAINS
 
      PROCEDURE :: Build => Build_Laplacian5OStencil
