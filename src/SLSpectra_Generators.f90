@@ -14,6 +14,7 @@ IMPLICIT NONE
     CONTAINS
     
       PROCEDURE :: AssociateMesh
+      PROCEDURE :: DisassociateMesh
       PROCEDURE :: SLOperator => SLOperator_Default
       
   END TYPE Generator
@@ -28,6 +29,14 @@ CONTAINS
       this % modelMesh => modelMesh
       
   END SUBROUTINE AssociateMesh
+  
+  SUBROUTINE DisassociateMesh( this )
+    IMPLICIT NONE
+    CLASS(Generator), INTENT(inout) :: this
+    
+      this % modelMesh => NULL()
+      
+  END SUBROUTINE DisassociateMesh
   
   FUNCTION SLOperator_Default( this, v ) RESULT(Av)
   !! The default SLOperator takes in a 2-D array "v" (in ij format) and returns

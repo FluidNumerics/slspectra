@@ -9,6 +9,7 @@ USE SLSpectra_Mesh
 IMPLICIT NONE
 
    TYPE AdjacencyGraph
+      LOGICAL              :: colored
       INTEGER              :: nDOF
       INTEGER              :: maxValence
       INTEGER              :: nColors
@@ -27,6 +28,9 @@ IMPLICIT NONE
       PROCEDURE :: Free => Free_AdjacencyGraph      
 
       PROCEDURE :: GreedyColoring => GreedyColoring_AdjacencyGraph
+      
+      PROCEDURE :: ImpulseFields
+      PROCEDURE :: DenseMatrix
     
 !      PROCEDURE :: Write_HDF5
 !      PROCEDURE :: Read_HDF5
@@ -54,6 +58,7 @@ CONTAINS
       this % nDOF       = nDOF
       this % maxValence = maxValence
       this % nColors    = 0
+      this % colored = .FALSE.
 
       ALLOCATE( this % valence(1:nDOF), & 
                 this % color(1:nDOF), &
@@ -77,13 +82,15 @@ CONTAINS
     INTEGER :: ni, nj
     REAL(prec) :: t1, t2
 
-       PRINT*, ' S/R BuildFromMeshAndStencil : Start! '
+      PRINT*, ' S/R BuildFromMeshAndStencil : Start! '
 
-       CALL CPU_TIME( t1 )
+      CALL CPU_TIME( t1 )
 
+      
       this % nDOF       = modelMesh % nDOF
       this % maxValence = relStencil % nPoints
       this % nColors    = 0
+      this % colored = .FALSE.
 
       ALLOCATE( this % valence(1:modelMesh % nDOF), & 
                 this % color(1:modelMesh % nDOF), &
@@ -200,16 +207,53 @@ CONTAINS
       ENDDO
       
       CALL CPU_TIME( t2 )
+      this % colored = .TRUE.
+      
       PRINT *,' S/R GreedyColoring : Coloring completed with ', this % nColors, ' colors.'
       PRINT *,' S/R GreedyColoring : Coloring completed in ', t2-t1, ' seconds.'
       
  END SUBROUTINE GreedyColoring_AdjacencyGraph
 
-! SUBROUTINE GenerateImpulseFields( this, dofArray )
-! !! Uses the colored graph to create arrays of impules field in DOF coordinates
-! !!  
-! 
-! END SUBROUTINE GenerateImpulseFields
+ FUNCTION ImpulseFields( this ) RESULT( dofArray )
+ !! Uses the colored graph to create arrays of impules field in DOF coordinates
+ !!  
+   IMPLICIT NONE
+   CLASS( AdjacencyGraph ) :: this
+   REAL(prec) :: dofArray(1:this % nDOF, 1:this % nColors)
+   ! Local
+   INTEGER :: i, j
+   
+     dofArray = 0.0_prec
+     
+     DO i = 1, this % nDOF
+       j = this % color(i)
+       dofArray(i,j) = 1.0_prec
+     ENDDO
+ 
+ END FUNCTION ImpulseFields
+ 
+ FUNCTION DenseMatrix( this, irfDof ) RESULT( A )
+ !! Uses the adjacency graph and the impulse response function to create a 
+ !! dense matrix
+   IMPLICIT NONE
+   CLASS( AdjacencyGraph ) :: this
+   REAL(prec) :: irfDof(1:this % nDOF, 1:this % nColors)
+   REAL(prec) :: A(1:this % nDOF, 1:this % nDOF)
+   ! Local
+   INTEGER :: row, col, color, nid
+   
+     A = 0.0_prec
+     DO col = 1, this % nDOF
+       color = this % color(col)
+       A(col,col) = irfDof(col,color)
+       DO nid = 1, this % valence(col) 
+         row = this % neighbors(nid,col)
+         A(row,col) = irfDof(row,color)
+       ENDDO
+     ENDDO
+     
+ END FUNCTION DenseMatrix
+       
 
 ! SUBROUTINE Read_HDF5( this, filename )
 !   IMPLICIT NONE

@@ -22,18 +22,28 @@ SLS_F90_SRCS = SLSpectra_Precision \
    	       SLSpectra_AdjacencyGraph \
 	       SLSpectra_Generators 
 
+SLS_EXAMPLES = DirichletSquare
+
 SLS_LIBS = slspectra
 
 SLS_OBJS = $(addprefix $(SLS_SRCDIR), $(addsuffix .f.o, $(SLS_F90_SRCS)))
 SLS_LIB_OBJS = $(addprefix $(SLS_LIBDIR)lib, $(addsuffix .a, $(SLS_LIBS)))
 SLS_BUILDDIRS = $(SLS_INCDIR) $(SLS_LIBDIR) $(SLS_BINDIR) $(SLS_EXADIR) $(SLS_TESTDIR)
 
+# Example Programs
+SLS_EXAS = $(addprefix $(SLS_EXADIR), $(SLS_EXAMPLES))
+
 # Add preprocessing to flags (Assumes gnu compilers)
-SLS_FFLAGS += -cpp
+SLS_FFLAGS += -cpp -DDOUBLE_PRECISION
 
 
 slspectra: $(SLS_LIB_OBJS)
 
+examples: $(SLS_EXAS)
+
+$(SLS_EXAS): $(SLS_DIR)/build/%: %.f90 $(SLS_OBJS)
+	$(FC) -c $(SLS_FFLAGS) -I$(SLS_INCDIR) $< -o $<.o
+	$(FC) $(SLS_FFLAGS) -I$(SLS_INCDIR) $(SLS_SRCDIR)*.o  $<.o $(SLS_FLIBS) -o $@
 
 $(SLS_LIBDIR)libslspectra.a: $(SLS_OBJS)
 	rm -f $@
@@ -47,7 +57,7 @@ clean:
 	rm -f $(SLS_LIBDIR)*.a
 	rm -f $(SLS_MODDIR)*.mod
 	rm -f $(SLS_SRCDIR)*.o
-	rm -f $(SLS_EXASRCDIR)*.o
+	rm -f $(SLS_EXADIR)*.o
 
 # Dependency on build tree existence
 $(SLS_OBJS): | $(SLS_BUILDDIRS)

@@ -4,7 +4,7 @@ USE SLSpectra_Precision
  IMPLICIT NONE
 
    TYPE Mesh
-      INTEGER                 :: nX, nY, nZ, nDOF
+      INTEGER                 :: nX, nY, nDOF
 
       ! Derived quantities
       REAL(prec), ALLOCATABLE :: tracermask(:,:)
@@ -42,7 +42,7 @@ USE SLSpectra_Precision
 !----------------------------- Manual Constructor/Destructor --------------------------------------!
 !==================================================================================================!
 !
- SUBROUTINE Build_Mesh( this, nX, nY, nZ )
+ SUBROUTINE Build_Mesh( this, nX, nY )
  ! S/R Build
  !  
  !    
@@ -50,11 +50,10 @@ USE SLSpectra_Precision
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Mesh), INTENT(out) :: this
-   INTEGER, INTENT(in)      :: nX, nY, nZ
+   INTEGER, INTENT(in)      :: nX, nY
 
       this % nX = nX
       this % nY = nY
-      this % nZ = nZ 
       ! Tracer mesh
       ALLOCATE( this % tracermask(1:nX,1:nY), &
                 this % IJtoDOF(1:nX,1:nY), &
@@ -172,7 +171,7 @@ USE SLSpectra_Precision
    INTEGER :: i, j, l
 
 
-      ijArray = SLSpectra_fillValue
+      ijArray = 0.0_prec
       DO l = 1, this % nDof
 
          i = this % DOFtoIJ(1,l)
