@@ -11,10 +11,11 @@ IMPLICIT NONE
   INTEGER, PARAMETER :: nX = 5
   INTEGER, PARAMETER :: nY = 5
   
-  TYPE(Laplacian5OStencil) :: modelStencil
+  TYPE(Laplacian5Stencil) :: modelStencil
   TYPE(Mesh), TARGET :: modelMesh
   TYPE(Generator) :: laplacian
-  TYPE(AdjacencyGraph) :: graph
+  TYPE(AdjacencyGraph) :: diagnosisGraph
+  TYPE(AdjacencyGraph) :: overlapGraph
   REAL(prec), ALLOCATABLE :: impulseDof(:,:), irfDof(:,:)
   REAL(prec), ALLOCATABLE :: impulse(:,:), irf(:,:)
   REAL(prec), ALLOCATABLE :: Lmatrix(:,:)
@@ -31,14 +32,15 @@ IMPLICIT NONE
   CALL laplacian % AssociateMesh( modelMesh )
   
   ! Create an adjacency graph using the mesh and the stencil
-  CALL graph % Build( modelMesh, modelStencil )
+  CALL diagnosisGraph % Build( modelMesh, modelStencil % firstOrder )
+  CALL overlapGraph % Build( modelMesh, modelStencil % secondOrder )
   
   ! Color the graph
-  CALL graph % GreedyColoring()
+  CALL overlapGraph % GreedyColoring()
   
   ! Allocate space for the impulse and impulse response functions
-  ALLOCATE(impulseDof(1:modelMesh % nDOF, graph % nColors), &
-           irfDof(1:modelMesh % nDOF, graph % nColors), &
+  ALLOCATE(impulseDof(1:modelMesh % nDOF, overlapGraph % nColors), &
+           irfDof(1:modelMesh % nDOF, overlapGraph % nColors), &
            impulse(1:nX, 1:nY), &
            irf(1:nX, 1:nY), &
            LMatrix(1:modelMesh % nDOF,1:modelMesh % nDOF))
@@ -50,9 +52,9 @@ IMPLICIT NONE
   irf = 0.0_prec
   
   ! Create the impulse fields from the colored graph
-  impulseDof = graph % ImpulseFields()
+  impulseDof = overlapGraph % ImpulseFields()
   
-  DO i = 1, graph % nColors
+  DO i = 1, overlapGraph % nColors
     ! Convert the impulse fields to ij format from dof format
     impulse = modelMesh % gridMap(impulseDof(:,i))
     
@@ -64,12 +66,12 @@ IMPLICIT NONE
     
   ENDDO
   
-
   ! Create a matrix from the graph and the irf
-  LMatrix = graph % DenseMatrix(irfDof)
+  LMatrix = overlapGraph % DenseMatrix(diagnosisGraph, irfDof)
+  
   DO j = 1, modelMesh % nDOF
     DO i = 1, modelMesh % nDOF
-      PRINT*, LMatrix(i,j) - LMatrix(j,i)
+      PRINT*, i, j, LMatrix(i,j) - LMatrix(j,i)
     ENDDO
   ENDDO
   ! To do : Calculate matrix action using SLOperator
@@ -85,7 +87,7 @@ IMPLICIT NONE
   CALL laplacian % DisassociateMesh( )
   CALL modelMesh % Free()
   CALL modelStencil % Free()
-  CALL graph % Free()
+  CALL overlapGraph % Free()
   
 
 END PROGRAM DirichletSquare

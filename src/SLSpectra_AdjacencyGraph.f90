@@ -20,10 +20,10 @@ IMPLICIT NONE
       CONTAINS
 
       GENERIC,PUBLIC :: Build => Build_AdjacencyGraph, &
-                                 BuildFromMeshAndL5OStencil_AdjacencyGraph 
+                                 BuildFromMeshAndL5Stencil_AdjacencyGraph 
                                  
       PROCEDURE, PRIVATE :: Build_AdjacencyGraph
-      PROCEDURE, PRIVATE :: BuildFromMeshAndL5OStencil_AdjacencyGraph
+      PROCEDURE, PRIVATE :: BuildFromMeshAndL5Stencil_AdjacencyGraph
       
       PROCEDURE :: Free => Free_AdjacencyGraph      
 
@@ -64,19 +64,19 @@ CONTAINS
                 this % color(1:nDOF), &
                 this % neighbors(1:maxValence,1:nDOF) )
 
-      this % valence    = 0
-      this % color      = 0
+      this % valence   = 0
+      this % color     = 0
       this % neighbors = 0
 
  END SUBROUTINE Build_AdjacencyGraph
 
- SUBROUTINE BuildFromMeshAndL5OStencil_AdjacencyGraph( this, modelMesh, relStencil )
+ SUBROUTINE BuildFromMeshAndL5Stencil_AdjacencyGraph( this, modelMesh, relStencil )
  ! Given a Mesh and a 5-point Laplacian overlap stencil, this routine constructs an adjacency
  ! graph using only the wet points in the mesh.
     IMPLICIT NONE
     CLASS( AdjacencyGraph ), INTENT(inout) :: this
     TYPE( Mesh ), INTENT(in)  :: modelMesh
-    TYPE( Laplacian5OStencil ), INTENT(in) :: relStencil
+    TYPE( Stencil ), INTENT(in) :: relStencil
     ! Local
     INTEGER :: i, j,  e1, e2, m
     INTEGER :: ni, nj
@@ -86,7 +86,6 @@ CONTAINS
 
       CALL CPU_TIME( t1 )
 
-      
       this % nDOF       = modelMesh % nDOF
       this % maxValence = relStencil % nPoints
       this % nColors    = 0
@@ -98,8 +97,7 @@ CONTAINS
 
       this % valence = 0
       this % color = 0
-      this % neighbors = 0
-      
+      this % neighbors = 0      
        DO e1 = 1, modelMesh % nDOF
 
           i = modelMesh % DOFtoIJ(1,e1)
@@ -131,7 +129,7 @@ CONTAINS
       CALL CPU_TIME( t2 )
       PRINT *,' S/R BuildFromMeshAndStencil : Completed in ', t2-t1, ' seconds.'
 
- END SUBROUTINE BuildFromMeshAndL5OStencil_AdjacencyGraph
+ END SUBROUTINE BuildFromMeshAndL5Stencil_AdjacencyGraph
 
  SUBROUTINE Free_AdjacencyGraph( this )
  ! This subroutine frees memory held by the allocatable attributes of the
@@ -232,11 +230,12 @@ CONTAINS
  
  END FUNCTION ImpulseFields
  
- FUNCTION DenseMatrix( this, irfDof ) RESULT( A )
+ FUNCTION DenseMatrix( this, diagGraph, irfDof ) RESULT( A )
  !! Uses the adjacency graph and the impulse response function to create a 
  !! dense matrix
    IMPLICIT NONE
    CLASS( AdjacencyGraph ) :: this
+   TYPE( AdjacencyGraph ) :: diagGraph
    REAL(prec) :: irfDof(1:this % nDOF, 1:this % nColors)
    REAL(prec) :: A(1:this % nDOF, 1:this % nDOF)
    ! Local
@@ -244,10 +243,14 @@ CONTAINS
    
      A = 0.0_prec
      DO col = 1, this % nDOF
+       ! Get the color for this degree of freedom
        color = this % color(col)
+       ! Set the diagonal element of the matrix
        A(col,col) = irfDof(col,color)
-       DO nid = 1, this % valence(col) 
-         row = this % neighbors(nid,col)
+       
+       ! Set the off-diagonals by looping over the neighbors
+       DO nid = 1, diagGraph % valence(col) 
+         row = diagGraph % neighbors(nid,col)
          A(row,col) = irfDof(row,color)
        ENDDO
      ENDDO

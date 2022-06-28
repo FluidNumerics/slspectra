@@ -10,50 +10,54 @@ MODULE SLSpectra_Stencil
 IMPLICIT NONE
 
 
-   TYPE, ABSTRACT :: Stencil
-     !! The Stencil class is an abstract class that lays out the structure for defining a 
-     !! discrete computational stencil. The Build method for this abstract class is deferred
-     !! intentionally. The Free method is provided so that you don't have to add your own
+   TYPE:: Stencil
+     !! The Stencil class is a class that lays out the structure for defining a 
+     !! discrete computational stencil. The Build method for this class is provided for
+     !! memory allocation only. The Free method is provided so that you don't have to add your own
      !! Free method for a type extended class.
-     !!
-     !! Adding a specific stencil requires that you declare a type extension of
-     !! the Stencil class and then concretize the Build type bound procedure.
-     !! When using a specific stencil, you simply have to declare your object as one of the
-     !! concretized types.
      !!
      INTEGER              :: nPoints ! Number of points in the stencil
      INTEGER, ALLOCATABLE :: neighbors(:,:) ! indices of the neighbors relative to the center
 
      CONTAINS 
   
-     PROCEDURE(Build_Stencil), DEFERRED :: Build
+     PROCEDURE :: Build => Build_Stencil
      PROCEDURE :: Free => Free_Stencil
 
    END TYPE Stencil
 
-   TYPE, EXTENDS(Stencil) :: Laplacian5OStencil
+   TYPE :: Laplacian5Stencil
      !! Class for a 5 point laplacian overlap stencil in 2-D
      !! This stencil is equivalent to the stencil obtained by
      !! applying the 5-point laplacian operator twice on
      !! an impulse field
     
+       TYPE(Stencil) :: firstOrder
+       TYPE(Stencil) :: secondOrder
+       
      CONTAINS
 
-     PROCEDURE :: Build => Build_Laplacian5OStencil
+     PROCEDURE :: Build => Build_Laplacian5Stencil
+     PROCEDURE :: Free => Free_Laplacian5Stencil
 
-   END TYPE Laplacian5OStencil
+   END TYPE Laplacian5Stencil
 
-
-   INTERFACE 
-    SUBROUTINE Build_Stencil( this )
-      IMPORT Stencil
-      IMPLICIT NONE
-      CLASS(Stencil),INTENT(out) :: this
-    END SUBROUTINE Build_Stencil
-   END INTERFACE
 
 
 CONTAINS
+
+ SUBROUTINE Build_Stencil( this, nPoints ) 
+ !! Constructor 
+   IMPLICIT NONE
+   CLASS( Stencil ), INTENT(out) :: this
+   INTEGER,  INTENT(in) :: nPoints
+
+
+     this % nPoints = nPoints
+     
+     ALLOCATE( this % neighbors(1:3, nPoints) )
+     
+ END SUBROUTINE Build_Stencil
 
  SUBROUTINE Free_Stencil( this )
 
@@ -66,41 +70,69 @@ CONTAINS
  END SUBROUTINE Free_Stencil
 
 
- SUBROUTINE Build_Laplacian5OStencil( this ) 
- !! Constructor for the Laplacian5OStencil
+ SUBROUTINE Build_Laplacian5Stencil( this ) 
+ !! Constructor for the Laplacian5Stencil
    IMPLICIT NONE
-   CLASS( Laplacian5OStencil ), INTENT(out) :: this
+   CLASS( Laplacian5Stencil ), INTENT(out) :: this
    ! Local
    INTEGER :: i, j, nid
 
-     this % nPoints = 13 
-     ALLOCATE( this % neighbors(1:3,13) )
-
+     ! Allocate space for the 5-point Laplacian stencil
+     CALL this % firstOrder % Build( 5 )
+     
+     ! Allocate space for the overlap stencil associated with
+     ! the 5 point Laplacian stencil
+     CALL this % secondOrder % Build( 13 )
+     
+     ! Create the 5-point Laplacian stencil
      nid = 1
-     this % neighbors(1:3,nid) = (/0,-2,0/)
+     this % firstOrder % neighbors(1:3,nid) = (/0,-1,0/)
+     
+     j = 0
+     DO i = -1, 1
+       nid = nid + 1
+       this % firstOrder % neighbors(1:3,nid) = (/ i,j,0 /)
+     ENDDO
+     
+     nid = nid + 1
+     this % firstOrder % neighbors(1:3,nid) = (/0,1,0/)
+
+     ! Create the overlap stencil (equivalent to applying the Laplacian twice) 
+     nid = 1
+     this % secondOrder % neighbors(1:3,nid) = (/0,-2,0/)
 
      j = -1
      DO i = -1, 1
        nid = nid + 1
-       this % neighbors(1:3,nid) = (/ i,j,0 /)
+       this % secondOrder % neighbors(1:3,nid) = (/ i,j,0 /)
      ENDDO
 
      j = 0
      DO i = -2, 2
        nid = nid + 1
-       this % neighbors(1:3,nid) = (/ i,j,0 /)
+       this % secondOrder % neighbors(1:3,nid) = (/ i,j,0 /)
      ENDDO
 
      j = 1
      DO i = -1, 1
        nid = nid + 1
-       this % neighbors(1:3,nid) = (/ i,j,0 /)
+       this % secondOrder % neighbors(1:3,nid) = (/ i,j,0 /)
      ENDDO
 
      nid = nid + 1
-     this % neighbors(1:3,nid) = (/0,2,0/)
+     this % secondOrder % neighbors(1:3,nid) = (/0,2,0/)
 
 
- END SUBROUTINE Build_Laplacian5OStencil
+ END SUBROUTINE Build_Laplacian5Stencil
+ 
+ SUBROUTINE Free_Laplacian5Stencil( this ) 
+ !! Constructor for the Laplacian5Stencil
+   IMPLICIT NONE
+   CLASS( Laplacian5Stencil ), INTENT(inout) :: this
+   
+     CALL this % firstOrder % Free()
+     CALL this % secondOrder % Free()
+   
+ END SUBROUTINE Free_Laplacian5Stencil
 
 END MODULE SLSpectra_Stencil
