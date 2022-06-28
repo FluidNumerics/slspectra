@@ -85,7 +85,7 @@ USE SLSpectra_Precision
  END SUBROUTINE Free_Mesh
 !
  SUBROUTINE ConstructDirichletCube( this )
- !! Constructs a cube domain on [0,1]^3 with the tracermask
+ !! Constructs a cube domain on [0,1]^2 with the tracermask
  !! set to 0 on the south, east, north, and west boundaries.
  !!
  !! This mesh construction is meant to be used for testing purposes
