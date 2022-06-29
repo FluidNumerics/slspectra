@@ -1,5 +1,6 @@
 PROGRAM DirichletSquare
 
+USE ISO_FORTRAN_ENV
 USE SLSpectra_Precision
 USE SLSpectra_Mesh
 USE SLSpectra_Stencil
@@ -8,8 +9,8 @@ USE SLSpectra_Generators
 
 IMPLICIT NONE
 
-  INTEGER, PARAMETER :: nX = 5
-  INTEGER, PARAMETER :: nY = 5
+  INTEGER, PARAMETER :: nX = 100
+  INTEGER, PARAMETER :: nY = 100
   
   TYPE(Laplacian5Stencil) :: modelStencil
   TYPE(Mesh), TARGET :: modelMesh
@@ -22,8 +23,13 @@ IMPLICIT NONE
   REAL(prec), ALLOCATABLE :: v(:,:), vDof(:)
   REAL(prec), ALLOCATABLE :: Av(:,:), AvDof(:), AvCheck(:,:)
   REAL(prec) :: absmaxDiff
-  INTEGER :: row, i, j 
+  INTEGER :: row, i, j
+  INTEGER :: N, lwork, liwork, info
+  REAL(prec), ALLOCATABLE :: w(:) ! Eigenvalues
+  REAL(prec), ALLOCATABLE :: work(:)
+  INTEGER, ALLOCATABLE :: iwork(:)
   
+     
   ! Create a stencil
   CALL modelStencil % Build()
   
@@ -78,6 +84,7 @@ IMPLICIT NONE
   LMatrix = overlapGraph % DenseMatrix(diagnosisGraph, irfDof)
 
   ! Create a step function where v = 1 in the upper right corner of the domain
+  PRINT*, 'Verifying generated matrix'
   v = 0.0_prec
   DO j = 1, nY
     DO i = 1, nX
@@ -92,10 +99,10 @@ IMPLICIT NONE
   ! Create an equivalent array for "v" in DOF format
   vDof = modelMesh % flatMap( v )
   
-  ! To do : Calculate matrix action using SLOperator
+  ! Calculate matrix action using SLOperator
   Av = laplacian % SLOperator( v )
   
-  ! To do : Calculate matrix action using diagnosed matrix
+  ! Calculate matrix action using diagnosed matrix
   DO row = 1, modelMesh % nDOF
     AvDof(row) = 0.0_prec
     DO i = 1, modelMesh % nDOF
@@ -103,7 +110,7 @@ IMPLICIT NONE
     ENDDO
   ENDDO
       
-  ! To do : Compare results and verify consistency
+  ! Compare results and verify consistency
   AvCheck = modelMesh % gridMap(AvDof)
   absmaxDiff = 0.0_prec
   DO j = 1, nY
@@ -115,7 +122,33 @@ IMPLICIT NONE
   ENDDO
   
   PRINT*, 'Absolute max difference : ', absmaxDiff
+  
   ! To do : Get Eigenvalues and Eigenvectors
+  N = modelMesh % nDOF
+  lwork = 1+6*N + 2*N*N
+  liwork = 3+5*N
+  ALLOCATE( w(1:N), work(1:lwork), iwork(1:liwork) )
+  PRINT*, 'Finding eigenvalues'
+  
+  IF( prec == real32 )THEN
+    CALL SSYEVD( 'V', 'U', N, &
+                Lmatrix, N, &
+                w, work, lwork, &
+                iwork, liwork, info )
+  ELSE
+    CALL DSYEVD( 'V', 'U', N, &
+                Lmatrix, N, &
+                w, work, lwork, &
+                iwork, liwork, info )
+  ENDIF
+  
+  IF( info == 0 )THEN
+    PRINT*,'Eigenvalues + Eigenvectors found!'
+  ELSEIF( info < 0 )THEN
+    PRINT*, 'Illegal value in argument : ',ABS(info)
+  ELSE
+    PRINT*, 'Algorithm failed!'
+  ENDIF
   
   ! Clean up memory
   DEALLOCATE(impulseDof, &
@@ -126,6 +159,9 @@ IMPLICIT NONE
              v, Av, &
              vDof, AvDof, &
              AvCheck)
+  
+  DEALLOCATE( w, work, iwork )
+
   CALL laplacian % DisassociateMesh( )
   CALL modelMesh % Free()
   CALL modelStencil % Free()

@@ -5,6 +5,11 @@ SLS_DIR ?= $(shell pwd)
 # Default to debug flags
 SLS_FFLAGS ?= -O0 -g -Wall
 
+SLS_LINK ?= -L$(LAPACK)/lib -lopenblas 
+SLS_INCLUDE ?= -I$(LAPACK)/include
+
+SLS_FFLAGS += $(SLS_LINK) $(SLS_INCLUDE)
+
 SLS_SRCDIR = $(SLS_DIR)/src/
 
 
