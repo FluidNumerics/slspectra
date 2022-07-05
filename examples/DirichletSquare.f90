@@ -2,6 +2,7 @@ PROGRAM DirichletSquare
 
 USE ISO_FORTRAN_ENV
 USE SLSpectra_Precision
+USE SLSpectra_SupportRoutines
 USE SLSpectra_Mesh
 USE SLSpectra_Stencil
 USE SLSpectra_AdjacencyGraph
@@ -11,7 +12,7 @@ IMPLICIT NONE
 
   INTEGER, PARAMETER :: nX = 100
   INTEGER, PARAMETER :: nY = 100
-  
+  REAL(prec), PARAMETER :: pi = 4.0_prec*atan(1.0_prec)
   TYPE(Laplacian5Stencil) :: modelStencil
   TYPE(Mesh), TARGET :: modelMesh
   TYPE(Generator) :: laplacian
@@ -19,15 +20,22 @@ IMPLICIT NONE
   TYPE(AdjacencyGraph) :: overlapGraph
   REAL(prec), ALLOCATABLE :: impulseDof(:,:), irfDof(:,:)
   REAL(prec), ALLOCATABLE :: impulse(:,:), irf(:,:)
+  REAL(prec), ALLOCATABLE :: colors(:,:)
   REAL(prec), ALLOCATABLE :: Lmatrix(:,:)
   REAL(prec), ALLOCATABLE :: v(:,:), vDof(:)
   REAL(prec), ALLOCATABLE :: Av(:,:), AvDof(:), AvCheck(:,:)
+  REAL(prec), ALLOCATABLE :: uniqueEval(:)
+  INTEGER, ALLOCATABLE :: uniqueIndices(:)
   REAL(prec) :: absmaxDiff
-  INTEGER :: row, i, j
+  INTEGER :: row, i, j, nUnique
   INTEGER :: N, lwork, liwork, info
   REAL(prec), ALLOCATABLE :: w(:) ! Eigenvalues
   REAL(prec), ALLOCATABLE :: work(:)
   INTEGER, ALLOCATABLE :: iwork(:)
+  REAL(prec), ALLOCATABLE :: modalCoeffs(:)
+  CHARACTER(8) :: evec
+  REAL(prec) :: vDotL, lNorm
+  INTEGER :: fUnit
   
      
   ! Create a stencil
@@ -52,12 +60,16 @@ IMPLICIT NONE
            irfDof(1:modelMesh % nDOF, overlapGraph % nColors), &
            impulse(1:nX, 1:nY), &
            irf(1:nX, 1:nY), &
+           colors(1:nX, 1:nY), &
            LMatrix(1:modelMesh % nDOF,1:modelMesh % nDOF), &
            v(1:nX,1:nY), &
            vDof(1:modelMesh % nDOF), &
            Av(1:nX,1:nY), &
            AvDof(1:modelMesh % nDOF), &
-           AvCheck(1:nX,1:nY))
+           AvCheck(1:nX,1:nY),&
+           modalCoeffs(1:modelMesh % nDOF), &
+           uniqueEval(1:modelMesh % nDOF), &
+           uniqueIndices(1:modelMesh % nDOF))
   
   ! Initialize all values to 0
   impulseDof = 0.0_prec
@@ -68,9 +80,14 @@ IMPLICIT NONE
   ! Create the impulse fields from the colored graph
   impulseDof = overlapGraph % ImpulseFields()
   
+  colors = 0.0_prec
   DO i = 1, overlapGraph % nColors
     ! Convert the impulse fields to ij format from dof format
     impulse = modelMesh % gridMap(impulseDof(:,i))
+    colors = colors+impulse*REAL(i,prec)
+    
+    WRITE(evec,'(I8.8)') i
+    CALL modelMesh % WriteTecplot( impulse, 'impulse', 'impulsefield.'//evec//'.tec' )
     
     ! Calculate the impulse response
     irf = laplacian % SLOperator( impulse )
@@ -79,6 +96,7 @@ IMPLICIT NONE
     irfDof(:,i) = modelMesh % FlatMap( irf )
     
   ENDDO
+  CALL modelMesh % WriteTecplot( colors, 'colors', 'colors.tec' )
   
   ! Create a matrix from the graph and the irf
   LMatrix = overlapGraph % DenseMatrix(diagnosisGraph, irfDof)
@@ -144,6 +162,85 @@ IMPLICIT NONE
   
   IF( info == 0 )THEN
     PRINT*,'Eigenvalues + Eigenvectors found!'
+    
+    ! Find degenerate eigenvalues
+    N = modelMesh % nDOF
+    j = 1
+    uniqueEval = 0.0_prec
+    uniqueEval(1) = w(1)
+    uniqueIndices(1) = 1
+    DO i = 2, N
+      IF( ANY( uniqueEval == w(i) ) ) THEN
+         uniqueIndices(i) = j
+        CYCLE
+      ENDIF
+      j = j + 1
+      uniqueIndices(i) = j
+      uniqueEval(j) = w(i)
+    ENDDO
+    nUnique = j
+  
+    PRINT*, 'Number of unique eigenvalues : ', j
+    
+    ! Project example data onto the eigenvectors
+    
+    ! > Example - create a sinusoid with known wavelength
+    DO j = 1, modelMesh % nY
+      DO i = 1, modelMesh % nY
+        v(i,j) = sin( 2.0*pi*10.0*modelMesh % x(i,j) )*sin( 2.0*pi*10.0*modelMesh % y(i,j) )
+      ENDDO
+    ENDDO
+    
+    vDof = modelMesh % FlatMap( v )
+    
+    modalCoeffs = 0.0_prec
+    DO j = 1, N
+      i = uniqueIndices(j)
+      vDotL = DOT_PRODUCT(vDOF, Lmatrix(:,j))
+      Lnorm = SQRT(DOT_PRODUCT(Lmatrix(:,j),Lmatrix(:,j)))
+      modalCoeffs(i) = modalCoeffs(i) + (vDotL/Lnorm)**2
+    ENDDO
+        
+    ! Write the  modal coefficients
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= 'sin-10-modal.curve', &
+      FORM='formatted', &
+      STATUS='replace')
+    
+    DO i = 1, nUnique
+      WRITE(fUnit,*) uniqueEval(i), modalCoeffs(i)
+    ENDDO
+    CLOSE(UNIT=fUnit)
+    
+    ! > Example - create a gaussian with known halfwidth
+    DO j = 1, modelMesh % nY
+      DO i = 1, modelMesh % nY
+        v(i,j) = exp( -( (modelMesh % x(i,j)-0.5_prec)**2 + (modelMesh % y(i,j)-0.5_prec)**2 )/(2.0_prec*100.0_prec) )
+      ENDDO
+    ENDDO
+    
+    vDof = modelMesh % FlatMap( v )
+    
+    modalCoeffs = 0.0_prec
+    DO j = 1, N
+      i = uniqueIndices(j)
+      vDotL = DOT_PRODUCT(vDOF, Lmatrix(:,j))
+      Lnorm = SQRT(DOT_PRODUCT(Lmatrix(:,j),Lmatrix(:,j)))
+      modalCoeffs(i) = modalCoeffs(i) + (vDotL/Lnorm)**2
+    ENDDO
+        
+    ! Write the  modal coefficients
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= 'guassian-modal.curve', &
+      FORM='formatted', &
+      STATUS='replace')
+    
+    DO i = 1, nUnique
+      WRITE(fUnit,*) uniqueEval(i), modalCoeffs(i)
+    ENDDO
+    CLOSE(UNIT=fUnit)
+      
+    
   ELSEIF( info < 0 )THEN
     PRINT*, 'Illegal value in argument : ',ABS(info)
   ELSE
@@ -158,7 +255,10 @@ IMPLICIT NONE
              LMatrix, &
              v, Av, &
              vDof, AvDof, &
-             AvCheck)
+             AvCheck, &
+             modalCoeffs, &
+             uniqueEval, &
+             uniqueIndices)
   
   DEALLOCATE( w, work, iwork )
 

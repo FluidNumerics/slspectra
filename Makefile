@@ -22,6 +22,7 @@ SLS_EXADIR = $(SLS_DIR)/build/examples/
 vpath %.f90 $(SLS_SRCDIR)
 
 SLS_F90_SRCS = SLSpectra_Precision \
+	       SLSpectra_SupportRoutines \
 	       SLSpectra_Stencil \
 	       SLSpectra_Mesh \
    	       SLSpectra_AdjacencyGraph \
@@ -49,6 +50,7 @@ examples: $(SLS_EXAS)
 $(SLS_EXAS): $(SLS_DIR)/build/%: %.f90 $(SLS_OBJS)
 	$(FC) -c $(SLS_FFLAGS) -I$(SLS_INCDIR) $< -o $<.o
 	$(FC) $(SLS_FFLAGS) -I$(SLS_INCDIR) $(SLS_SRCDIR)*.o  $<.o $(SLS_FLIBS) -o $@
+	rm $<.o
 
 $(SLS_LIBDIR)libslspectra.a: $(SLS_OBJS)
 	rm -f $@

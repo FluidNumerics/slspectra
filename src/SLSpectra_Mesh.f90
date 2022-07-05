@@ -24,6 +24,8 @@ USE SLSpectra_Precision
           PROCEDURE :: FlatMap
           PROCEDURE :: GridMap
 
+          PROCEDURE :: WriteTecplot
+          
     END TYPE Mesh
 
     !TYPE, EXTENDS(Mesh) :: MITgcmMesh
@@ -66,7 +68,7 @@ USE SLSpectra_Precision
  SUBROUTINE Free_Mesh( this )
  ! S/R Free
  !  
- ! =============================================================================================== !
+ ! =====================================================WriteTecplot========================================== !
  ! DECLARATIONS
    IMPLICIT NONE
    CLASS(Mesh), INTENT(inout) :: this
@@ -201,5 +203,62 @@ USE SLSpectra_Precision
       ENDDO
 
  END FUNCTION FlatMap
+ 
+ SUBROUTINE WriteTecplot( this, ijArray, arrayName, filename )
+   IMPLICIT NONE
+   CLASS( Mesh ), INTENT(in) :: this
+   REAL(prec), INTENT(in) :: ijArray(1:this % nX, 1:this % nY)
+   CHARACTER(*), INTENT(in) :: arrayName
+   CHARACTER(*), INTENT(in) :: filename
+   ! Local
+   INTEGER :: fUnit, i, j 
+  
+   
+   OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= TRIM(filename), &
+      FORM='formatted', &
+      STATUS='replace')
+
+    WRITE(fUnit,*) 'VARIABLES = "X", "Y", "'//TRIM(arrayName)//'"'
+
+      
+    WRITE(fUnit,*) 'ZONE T="el00", I=',this % nX,', J=',this % nY
+
+    DO j = 1, this % nY
+      DO i = 1, this % nX
+
+        WRITE(fUnit,'(3(ES16.7E3,1x))') this % x(i,j), this % y(i,j), ijArray(i,j)
+
+      ENDDO
+    ENDDO
+
+    CLOSE(UNIT=fUnit)
+   
+   
+ END SUBROUTINE WriteTecplot
+ 
+ INTEGER FUNCTION NewUnit(thisunit)
+
+    IMPLICIT NONE
+    INTEGER,INTENT(out),OPTIONAL :: thisunit
+    ! Local
+    INTEGER,PARAMETER :: unitMin = 100,unitMax = 1000
+    LOGICAL :: isopened
+    INTEGER :: iUnit
+
+    newunit = -1
+
+    DO iUnit = unitMin,unitMax
+      ! Check to see IF this UNIT is opened
+      INQUIRE (UNIT=iUnit,opened=isopened)
+      IF (.not. isopened) THEN
+        newunit = iUnit
+        EXIT
+      END IF
+    END DO
+
+    IF (PRESENT(thisunit)) thisunit = newunit
+
+  END FUNCTION NewUnit
 
 END MODULE SLSpectra_Mesh
