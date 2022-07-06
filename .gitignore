@@ -1,3 +1,5 @@
 *.o
 *.mod
 build/
+*.tec
+*.curve
