@@ -1,4 +1,4 @@
-PROGRAM DirichletSquare
+PROGRAM CircularGeometry
 
 USE ISO_FORTRAN_ENV
 USE SLSpectra_Precision
@@ -43,7 +43,10 @@ IMPLICIT NONE
   
   ! Create a mesh
   CALL modelMesh % Build(nX,nY,1)
-  CALL modelMesh % ConstructDirichletCube()
+  CALL modelMesh % ConstructCircularGeometryDemo()
+  
+  CALL modelMesh % WriteTecplot( modelMesh % tracerMask, 'mask', 'mask.tec' )
+
   
  ! Associate the mesh with the Generator
   CALL laplacian % AssociateMesh( modelMesh )
@@ -163,6 +166,24 @@ IMPLICIT NONE
   IF( info == 0 )THEN
     PRINT*,'Eigenvalues + Eigenvectors found!'
     
+    DO i = 1, modelMesh % nDOF
+      WRITE(evec,'(I8.8)') i
+      j = modelMesh % nDOF + 1 - i
+      v = modelMesh % gridMap(Lmatrix(:,j))
+      CALL modelMesh % WriteTecplot(v, 'evec', 'evec.'//evec//'.tec' )
+    ENDDO
+    
+    ! Write the eigenvalues
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= 'evalues.curve', &
+      FORM='formatted', &
+      STATUS='replace')
+    DO i = 1, modelMesh % nDOF
+      j = modelMesh % nDOF + 1 - i
+      WRITE(fUnit,*) i, ABS(w(j))
+    ENDDO
+    CLOSE(UNIT=fUnit)
+    
     ! Find degenerate eigenvalues
     N = modelMesh % nDOF
     j = 1
@@ -215,7 +236,7 @@ IMPLICIT NONE
     ! > Example - create a gaussian with known halfwidth
     DO j = 1, modelMesh % nY
       DO i = 1, modelMesh % nY
-        v(i,j) = exp( -( (modelMesh % x(i,j)-0.5_prec)**2 + (modelMesh % y(i,j)-0.5_prec)**2 )/(2.0_prec*100.0_prec) )
+        v(i,j) = exp( -( (modelMesh % x(i,j)-0.5_prec)**2 + (modelMesh % y(i,j)-0.5_prec)**2 )/(2.0_prec*0.01_prec) )
       ENDDO
     ENDDO
     
@@ -269,4 +290,4 @@ IMPLICIT NONE
   CALL overlapGraph % Free()
   
 
-END PROGRAM DirichletSquare
+END PROGRAM CircularGeometry

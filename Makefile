@@ -28,7 +28,10 @@ SLS_F90_SRCS = SLSpectra_Precision \
    	       SLSpectra_AdjacencyGraph \
 	       SLSpectra_Generators 
 
-SLS_EXAMPLES = DirichletSquare
+SLS_EXAMPLES = DirichletSquare \
+	       IrregularGeometry \
+	       CircularGeometry \
+	       MITgcmGeometry
 
 SLS_LIBS = slspectra
 
@@ -40,7 +43,7 @@ SLS_BUILDDIRS = $(SLS_INCDIR) $(SLS_LIBDIR) $(SLS_BINDIR) $(SLS_EXADIR) $(SLS_TE
 SLS_EXAS = $(addprefix $(SLS_EXADIR), $(SLS_EXAMPLES))
 
 # Add preprocessing to flags (Assumes gnu compilers)
-SLS_FFLAGS += -cpp -DDOUBLE_PRECISION
+SLS_FFLAGS += -cpp
 
 
 slspectra: $(SLS_LIB_OBJS)
