@@ -6,9 +6,9 @@ SLS_DIR ?= $(shell pwd)
 SLS_FFLAGS ?= -O0 -g -Wall
 
 SLS_LINK ?= -L$(LAPACK)/lib -lopenblas 
-SLS_INCLUDE ?= -I$(LAPACK)/include
+SLS_INCLUDE ?= -I$(LAPACK)/include 
 
-SLS_FFLAGS += $(SLS_LINK) $(SLS_INCLUDE)
+SLS_FLIBS += $(SLS_LINK) $(SLS_INCLUDE)
 
 SLS_SRCDIR = $(SLS_DIR)/src/
 
@@ -29,8 +29,11 @@ SLS_F90_SRCS = SLSpectra_Precision \
 	       SLSpectra_Generators 
 
 SLS_EXAMPLES = DirichletSquare \
+	       NeumannSquare \
 	       IrregularGeometry \
+	       IrregularGeometryNeumann \
 	       CircularGeometry \
+	       CircularGeometryNeumann \
 	       MITgcmGeometry
 
 SLS_LIBS = slspectra
