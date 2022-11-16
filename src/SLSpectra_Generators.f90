@@ -12,13 +12,20 @@ IMPLICIT NONE
   TYPE Generator
     TYPE(Mesh), POINTER :: modelMesh => NULL()
     PROCEDURE(SLSOp), POINTER :: SLOperator => SLOperator_Default
+    PROCEDURE(SLSIP), POINTER :: SLInnerProduct => SLInnerProduct_Default
     CONTAINS
     
       PROCEDURE :: AssociateMesh
+
+!      PROCEDURE :: SetInnerProduct
       
       PROCEDURE :: DisassociateMesh
       PROCEDURE :: SLOperator_Default
       PROCEDURE :: SLOperator_Neumann
+      PROCEDURE :: SLOperator_MITgcmNeumann
+
+      PROCEDURE :: SLInnerProduct_Default
+      PROCEDURE :: SLInnerProduct_MITgcm
       
       PROCEDURE :: ApplyNeumannCondition
       
@@ -34,6 +41,19 @@ IMPLICIT NONE
       REAL(prec) :: Av(1:this % modelMesh % nX, 1:this % modelMesh % nY)
     END FUNCTION SLSOp
   END INTERFACE 
+
+  INTERFACE
+    FUNCTION SLSIP( this, u, v ) RESULT(uDotv)
+      USE SLSpectra_Precision, ONLY : prec
+      IMPORT Generator
+      IMPLICIT NONE
+      CLASS(Generator) :: this
+      REAL(prec) :: u(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+      REAL(prec) :: v(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+      REAL(prec) :: uDotv
+    END FUNCTION SLSIP
+  END INTERFACE 
+
 CONTAINS
 
   SUBROUTINE AssociateMesh( this, modelMesh )
@@ -124,6 +144,49 @@ CONTAINS
       ENDDO
       
   END FUNCTION SLOperator_Default
+
+  FUNCTION SLInnerProduct_Default( this, u, v ) RESULT(uDotv)
+    IMPLICIT NONE
+    CLASS(Generator) :: this
+    REAL(prec) :: u(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+    REAL(prec) :: v(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+    REAL(prec) :: uDotv
+    ! Local
+    INTEGER :: i, j
+    REAL(prec) :: dv2dx2, dv2dy2
+
+      uDotv = 0.0_prec
+      DO j = 1, this % modelMesh % nY
+        DO i = 1, this % modelMesh % nX
+
+          uDotv = uDotv + u(i,j)*v(i,j)*this % modelMesh % tracerMask(i,j)
+
+        ENDDO
+      ENDDO
+
+  END FUNCTION SLInnerProduct_Default
+
+  FUNCTION SLInnerProduct_MITgcm( this, u, v ) RESULT(uDotv)
+    IMPLICIT NONE
+    CLASS(Generator) :: this
+    REAL(prec) :: u(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+    REAL(prec) :: v(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+    REAL(prec) :: uDotv
+    ! Local
+    INTEGER :: i, j
+    REAL(prec) :: dv2dx2, dv2dy2
+
+      uDotv = 0.0_prec
+      DO j = 1, this % modelMesh % nY
+        DO i = 1, this % modelMesh % nX
+
+          uDotv = uDotv + u(i,j)*v(i,j)*&
+                  this % modelMesh % tracerMask(i,j)
+
+        ENDDO
+      ENDDO
+
+  END FUNCTION SLInnerProduct_MITgcm
   
   FUNCTION SLOperator_Neumann( this, v ) RESULT(Av)
   !! The default SLOperator takes in a 2-D array "v" (in ij format) and returns
@@ -185,6 +248,71 @@ CONTAINS
       ENDDO
       
   END FUNCTION SLOperator_Neumann
+  
+  FUNCTION SLOperator_MITgcmNeumann( this, v ) RESULT(Av)
+  !! The default SLOperator takes in a 2-D array "v" (in ij format) and returns
+  !! the action of the default Sturm-Liouville operator in "Av" (in ij format)
+  !! The default Sturm-Liouville operator is a 2nd order finite difference 
+  !! approximation for a laplacian on a uniform grid
+    IMPLICIT NONE
+    CLASS(Generator) :: this
+    REAL(prec) :: v(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+    REAL(prec) :: Av(1:this % modelMesh % nX, 1:this % modelMesh % nY)
+    ! Local
+    INTEGER :: i, j
+    REAL(prec) :: dv2dx2, dv2dy2
+    REAL(prec) :: fWest, fEast, fSouth, fNorth
+    
+      
+      Av = 0.0_prec
+      
+      DO j = 1, this % modelMesh % nY
+        DO i = 1, this % modelMesh % nX
+           
+          IF ( this % modelMesh % tracerMask(i,j) == SLSpectra_wetValue ) THEN
+          
+            ! West
+            IF( this % modelMesh % tracerMask(i-1,j) == SLSpectra_dryValue ) THEN
+              fWest = 0.0_prec
+            ELSE
+              fWest = ( v(i,j)*this % modelMesh % dyc(i,j) - &
+                        v(i-1,j)*this % modelMesh % dyc(i-1,j) )/this % modelMesh % raw(i,j)
+            ENDIF
+            
+            ! East
+            IF( this % modelMesh % tracerMask(i+1,j) == SLSpectra_dryValue ) THEN
+              fEast = 0.0_prec
+            ELSE
+              fEast = ( v(i+1,j)*this % modelMesh % dyc(i+1,j) - &
+                        v(i,j)*this % modelMesh % dyc(i,j) )/this % modelMesh % raw(i+1,j)
+            ENDIF
+            
+            ! South
+            IF( this % modelMesh % tracerMask(i,j-1) == SLSpectra_dryValue ) THEN
+              fSouth = 0.0_prec
+            ELSE
+              fSouth = ( v(i,j)*this % modelMesh % dxc(i,j) - &
+                         v(i,j-1)*this % modelMesh % dxc(i,j-1) )/this % modelMesh % ras(i,j)
+            ENDIF
+            
+            ! North
+            IF( this % modelMesh % tracerMask(i,j+1) == SLSpectra_dryValue ) THEN
+              fNorth = 0.0_prec
+            ELSE
+              fNorth = ( v(i,j+1)*this % modelMesh % dxc(i,j+1) - &
+                         v(i,j)*this % modelMesh % dxc(i,j) )/this % modelMesh % ras(i,j+1)
+            ENDIF
+            
+            dv2dx2 = ( fEast*this % modelMesh % dyc(i+1,j) - fWest*this % modelMesh % dyc(i,j) )/this % modelMesh % rac(i,j)
+            dv2dy2 = ( fNorth*this % modelMesh % dxc(i,j+1) - fSouth*this % modelMesh % dxc(i,j) )/this % modelMesh % rac(i,j)
+            Av(i,j) = dv2dx2 + dv2dy2 
+            
+          ENDIF
+          
+        ENDDO
+      ENDDO
+      
+  END FUNCTION SLOperator_MITgcmNeumann
   
   !SUBROUTINE Lanczos( this, nEval, v )
   !! This method applies the Lancsoz algorithm to obtain the 

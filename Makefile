@@ -3,7 +3,7 @@
 SLS_DIR ?= $(shell pwd)
 
 # Default to debug flags
-SLS_FFLAGS ?= -O0 -g -Wall
+SLS_FFLAGS ?= -O2 -g
 
 SLS_LINK ?= -L$(LAPACK)/lib -lopenblas 
 SLS_INCLUDE ?= -I$(LAPACK)/include 
@@ -11,6 +11,7 @@ SLS_INCLUDE ?= -I$(LAPACK)/include
 SLS_FLIBS += $(SLS_LINK) $(SLS_INCLUDE)
 
 SLS_SRCDIR = $(SLS_DIR)/src/
+SLS_EXASRCDIR = $(SLS_DIR)/examples/
 
 
 # Out-of-source build directories
@@ -26,10 +27,10 @@ SLS_F90_SRCS = SLSpectra_Precision \
 	       SLSpectra_Stencil \
 	       SLSpectra_Mesh \
    	       SLSpectra_AdjacencyGraph \
-	       SLSpectra_Generators 
+	       SLSpectra_Generators \
+	       SLSpectra_Model
 
-SLS_EXAMPLES = DirichletSquare \
-	       NeumannSquare \
+SLS_EXAMPLES = NeumannSquare \
 	       IrregularGeometry \
 	       IrregularGeometryNeumann \
 	       CircularGeometry \
@@ -71,6 +72,7 @@ clean:
 	rm -f $(SLS_MODDIR)*.mod
 	rm -f $(SLS_SRCDIR)*.o
 	rm -f $(SLS_EXADIR)*.o
+	rm -f $(SLS_EXASRCDIR)*.o
 
 # Dependency on build tree existence
 $(SLS_OBJS): | $(SLS_BUILDDIRS)

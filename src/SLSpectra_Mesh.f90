@@ -14,9 +14,13 @@ USE SLSpectra_Precision
       INTEGER, ALLOCATABLE    :: DOFtoIJ(:,:), IJtoDOF(:,:)
 
       ! MITgcm Data
+      REAL(prec), ALLOCATABLE :: dxc(:,:)
+      REAL(prec), ALLOCATABLE :: dyc(:,:)
       REAL(prec), ALLOCATABLE :: dxg(:,:)
       REAL(prec), ALLOCATABLE :: dyg(:,:)
       REAL(prec), ALLOCATABLE :: rac(:,:)
+      REAL(prec), ALLOCATABLE :: raw(:,:)
+      REAL(prec), ALLOCATABLE :: ras(:,:)
       REAL(prec), ALLOCATABLE :: hFacC(:,:,:)
       REAL(prec), ALLOCATABLE :: drf(:)
  
@@ -67,7 +71,11 @@ USE SLSpectra_Precision
                 this % y(1:nX,1:nY), &
                 this % dxg(1:nX,1:nY), &
                 this % dyg(1:nX,1:nY), &
+                this % dxc(1:nX,1:nY), &
+                this % dyc(1:nX,1:nY), &
                 this % rac(1:nX,1:nY), &
+                this % raw(1:nX,1:nY), &
+                this % ras(1:nX,1:nY), &
                 this % hFacC(1:nX,1:nY,1:nZ), &
                 this % drf(1:nZ))
       
@@ -83,7 +91,11 @@ USE SLSpectra_Precision
       DEALLOCATE( this % y )
       DEALLOCATE( this % dxg )
       DEALLOCATE( this % dyg )
+      DEALLOCATE( this % dxc )
+      DEALLOCATE( this % dyc )
       DEALLOCATE( this % rac )
+      DEALLOCATE( this % ras )
+      DEALLOCATE( this % raw )
       DEALLOCATE( this % hFacC )
       DEALLOCATE( this % drf )
 
@@ -114,8 +126,14 @@ USE SLSpectra_Precision
  !!   DXG.meta
  !!   DYG.data
  !!   DYG.meta
+ !!   DRF.data
+ !!   DRF.meta
  !!   RAC.data
  !!   RAC.meta
+ !!   RAW.data
+ !!   RAW.meta
+ !!   RAS.data
+ !!   RAS.meta
  !!   hFacC.data
  !!   hFacC.meta
  !!
@@ -209,6 +227,8 @@ USE SLSpectra_Precision
       RECL=prec*this % nX*this % nY)
     READ(fUnit,REC=1) this % dxg
     CLOSE(fUnit)
+    PRINT*, "DXG MAX : ", MAXVAL(this % dxg)
+    PRINT*, "DXG MIN : ", MINVAL(this % dxg)
     
     ! Read y grid spacing
     OPEN( UNIT=NEWUNIT(fUnit), &
@@ -220,6 +240,48 @@ USE SLSpectra_Precision
       CONVERT='BIG_ENDIAN', &
       RECL=prec*this % nX*this % nY)
     READ(fUnit,REC=1) this % dyg
+    CLOSE(fUnit)
+    PRINT*, "DYG MAX : ", MAXVAL(this % dyg)
+    PRINT*, "DYG MIN : ", MINVAL(this % dyg)
+    
+    ! Read x grid spacing
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= TRIM(mdpath)//'/DXC.data', &
+      ACTION= 'READ', &
+      FORM='UNFORMATTED', &
+      STATUS='OLD', &
+      ACCESS='DIRECT', &
+      CONVERT='BIG_ENDIAN', &
+      RECL=prec*this % nX*this % nY)
+    READ(fUnit,REC=1) this % dxc
+    CLOSE(fUnit)
+    PRINT*, "DXC MAX : ", MAXVAL(this % dxc)
+    PRINT*, "DXC MIN : ", MINVAL(this % dxc)
+    
+    ! Read y grid spacing
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= TRIM(mdpath)//'/DYC.data', &
+      ACTION= 'READ', &
+      FORM='UNFORMATTED', &
+      STATUS='OLD', &
+      ACCESS='DIRECT', &
+      CONVERT='BIG_ENDIAN', &
+      RECL=prec*this % nX*this % nY)
+    READ(fUnit,REC=1) this % dyc
+    CLOSE(fUnit)
+    PRINT*, "DYC MAX : ", MAXVAL(this % dyc)
+    PRINT*, "DYC MIN : ", MINVAL(this % dyc)
+    
+    ! Read z grid spacing
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= TRIM(mdpath)//'/DRF.data', &
+      ACTION= 'READ', &
+      FORM='UNFORMATTED', &
+      STATUS='OLD', &
+      ACCESS='DIRECT', &
+      CONVERT='BIG_ENDIAN', &
+      RECL=prec*this % nZ)
+    READ(fUnit,REC=1) this % drf
     CLOSE(fUnit)
     
     ! Read hFacC
@@ -245,6 +307,36 @@ USE SLSpectra_Precision
       RECL=prec*this % nX*this % nY)
     READ(fUnit,REC=1) this % rac
     CLOSE(fUnit)
+    PRINT*, "RAC MAX : ", MAXVAL(this % rac)
+    PRINT*, "RAC MIN : ", MINVAL(this % rac)
+    
+    ! Read cell area
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= TRIM(mdpath)//'/RAW.data', &
+      ACTION= 'READ', &
+      FORM='UNFORMATTED', &
+      STATUS='OLD', &
+      ACCESS='DIRECT', &
+      CONVERT='BIG_ENDIAN', &
+      RECL=prec*this % nX*this % nY)
+    READ(fUnit,REC=1) this % raw
+    CLOSE(fUnit)
+    PRINT*, "RAW MAX : ", MAXVAL(this % raw)
+    PRINT*, "RAW MIN : ", MINVAL(this % raw)
+    
+    ! Read cell area
+    OPEN( UNIT=NEWUNIT(fUnit), &
+      FILE= TRIM(mdpath)//'/RAS.data', &
+      ACTION= 'READ', &
+      FORM='UNFORMATTED', &
+      STATUS='OLD', &
+      ACCESS='DIRECT', &
+      CONVERT='BIG_ENDIAN', &
+      RECL=prec*this % nX*this % nY)
+    READ(fUnit,REC=1) this % ras
+    CLOSE(fUnit)
+    PRINT*, "RAS MAX : ", MAXVAL(this % ras)
+    PRINT*, "RAS MIN : ", MINVAL(this % ras)
     
     ! Set the scalar dx and dy (for testing purposes only)
     this % dx = this % dxg(1,1)
@@ -429,6 +521,7 @@ USE SLSpectra_Precision
 
      ! Count the number of wet-points and set the IJK to DOF mapping
      nDOF = 0
+     this % IJtoDOF = 0
      DO j = 1, this % nY
        DO i = 1, this % nX
          IF( this % tracerMask(i,j) == SLSpectra_wetValue )THEN
@@ -445,6 +538,7 @@ USE SLSpectra_Precision
 
      ! Now we can set the DOF to IJ mapping
      nDOF = 0
+     this % DOFtoIJ = 0
      DO j = 1, this % nY
        DO i = 1, this % nX
          IF( this % tracerMask(i,j) == SLSpectra_wetValue )THEN
@@ -465,14 +559,15 @@ USE SLSpectra_Precision
    ! Local
    INTEGER :: i, j, l
 
-
       ijArray = 0.0_prec
       DO l = 1, this % nDof
 
          i = this % DOFtoIJ(1,l)
          j = this % DOFtoIJ(2,l)
 
-         ijArray(i,j) = dofArray(l)
+         IF( i /= 0 .AND. j /= 0 ) THEN 
+           ijArray(i,j) = dofArray(l)
+         ENDIF
 
       ENDDO
 
@@ -491,7 +586,9 @@ USE SLSpectra_Precision
          i = this % DOFtoIJ(1,l)
          j = this % DOFtoIJ(2,l)
 
-         dofArray(l) = ijArray(i,j)
+         IF( i /= 0 .AND. j /= 0 ) THEN 
+           dofArray(l) = ijArray(i,j)
+         ENDIF
 
       ENDDO
 
