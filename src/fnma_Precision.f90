@@ -1,4 +1,4 @@
-MODULE SLSpectra_Precision
+MODULE fnma_Precision
 
 USE ISO_FORTRAN_ENV
 
@@ -10,4 +10,4 @@ IMPLICIT NONE
   INTEGER,PARAMETER :: prec = real32
 #endif
 
-END MODULE SLSpectra_Precision
+END MODULE fnma_Precision

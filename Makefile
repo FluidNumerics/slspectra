@@ -1,83 +1,75 @@
 
 
-SLS_DIR ?= $(shell pwd)
+FNMA_DIR ?= $(shell pwd)
 
 # Default to debug flags
-SLS_FFLAGS ?= -O2 -g
+FNMA_FFLAGS ?= -O2 -g
 
-SLS_LINK ?= -L$(LAPACK)/lib -lopenblas 
-SLS_INCLUDE ?= -I$(LAPACK)/include 
-
-SLS_FLIBS += $(SLS_LINK) $(SLS_INCLUDE)
-
-SLS_SRCDIR = $(SLS_DIR)/src/
-SLS_EXASRCDIR = $(SLS_DIR)/examples/
+FNMA_SRCDIR = $(FNMA_DIR)/src/
+FNMA_EXASRCDIR = $(FNMA_DIR)/examples/
 
 
 # Out-of-source build directories
-SLS_INCDIR = $(SLS_DIR)/build/include/
-SLS_LIBDIR = $(SLS_DIR)/build/lib/
-SLS_BINDIR = $(SLS_DIR)/build/bin/
-SLS_EXADIR = $(SLS_DIR)/build/examples/
+FNMA_INCDIR = $(FNMA_DIR)/build/include/
+FNMA_LIBDIR = $(FNMA_DIR)/build/lib/
+FNMA_BINDIR = $(FNMA_DIR)/build/bin/
+FNMA_EXADIR = $(FNMA_DIR)/build/examples/
 
-vpath %.f90 $(SLS_SRCDIR)
+vpath %.f90 $(FNMA_SRCDIR)
 
-SLS_F90_SRCS = SLSpectra_Precision \
-	       SLSpectra_SupportRoutines \
-	       SLSpectra_Stencil \
-	       SLSpectra_Mesh \
-   	       SLSpectra_AdjacencyGraph \
-	       SLSpectra_Generators \
-	       SLSpectra_Model
+FNMA_F90_SRCS = fnma_Precision \
+	        fnma_Mesh \
+		fnma_Metadata \
+		fnma_DataTypes
 
-SLS_EXAMPLES = NeumannSquare \
-	       IrregularGeometry \
-	       IrregularGeometryNeumann \
-	       CircularGeometry \
-	       CircularGeometryNeumann \
-	       MITgcmGeometry
+#FNMA_EXAMPLES = NeumannSquare \
+#	       IrregularGeometry \
+#	       IrregularGeometryNeumann \
+#	       CircularGeometry \
+#	       CircularGeometryNeumann \
+#	       MITgcmGeometry
 
-SLS_LIBS = slspectra
+FNMA_LIBS = fnma
 
-SLS_OBJS = $(addprefix $(SLS_SRCDIR), $(addsuffix .f.o, $(SLS_F90_SRCS)))
-SLS_LIB_OBJS = $(addprefix $(SLS_LIBDIR)lib, $(addsuffix .a, $(SLS_LIBS)))
-SLS_BUILDDIRS = $(SLS_INCDIR) $(SLS_LIBDIR) $(SLS_BINDIR) $(SLS_EXADIR) $(SLS_TESTDIR)
+FNMA_OBJS = $(addprefix $(FNMA_SRCDIR), $(addsuffix .f.o, $(FNMA_F90_SRCS)))
+FNMA_LIB_OBJS = $(addprefix $(FNMA_LIBDIR)lib, $(addsuffix .a, $(FNMA_LIBS)))
+FNMA_BUILDDIRS = $(FNMA_INCDIR) $(FNMA_LIBDIR) $(FNMA_BINDIR) $(FNMA_EXADIR) $(FNMA_TESTDIR)
 
 # Example Programs
-SLS_EXAS = $(addprefix $(SLS_EXADIR), $(SLS_EXAMPLES))
+#FNMA_EXAS = $(addprefix $(FNMA_EXADIR), $(FNMA_EXAMPLES))
 
 # Add preprocessing to flags (Assumes gnu compilers)
-SLS_FFLAGS += -cpp
+FNMA_FFLAGS += -cpp
 
 
-slspectra: $(SLS_LIB_OBJS)
+fnma: $(FNMA_LIB_OBJS)
 
-examples: $(SLS_EXAS)
+#examples: $(FNMA_EXAS)
 
-$(SLS_EXAS): $(SLS_DIR)/build/%: %.f90 $(SLS_OBJS)
-	$(FC) -c $(SLS_FFLAGS) -I$(SLS_INCDIR) $< -o $<.o
-	$(FC) $(SLS_FFLAGS) -I$(SLS_INCDIR) $(SLS_SRCDIR)*.o  $<.o $(SLS_FLIBS) -o $@
-	rm $<.o
+#$(FNMA_EXAS): $(FNMA_DIR)/build/%: %.f90 $(FNMA_OBJS)
+#	$(FC) -c $(FNMA_FFLAGS) -I$(FNMA_INCDIR) $< -o $<.o
+#	$(FC) $(FNMA_FFLAGS) -I$(FNMA_INCDIR) $(FNMA_SRCDIR)*.o  $<.o $(FNMA_FLIBS) -o $@
+#rm $<.o
 
-$(SLS_LIBDIR)libslspectra.a: $(SLS_OBJS)
+$(FNMA_LIBDIR)libfnma.a: $(FNMA_OBJS)
 	rm -f $@
 	$(AR) -cq $@ $^
 
-$(SLS_SRCDIR)%.f.o: %.f90
-	$(FC) -J$(SLS_INCDIR) $(SLS_FFLAGS) $(SLS_FLIBS) -c $< -o $@
+$(FNMA_SRCDIR)%.f.o: %.f90
+	$(FC) -J$(FNMA_INCDIR) $(FNMA_FFLAGS) $(FNMA_FLIBS) -c $< -o $@
 
 clean:
-	rm -f $(SLS_BINDIR)*
-	rm -f $(SLS_LIBDIR)*.a
-	rm -f $(SLS_MODDIR)*.mod
-	rm -f $(SLS_SRCDIR)*.o
-	rm -f $(SLS_EXADIR)*.o
-	rm -f $(SLS_EXASRCDIR)*.o
+	rm -f $(FNMA_BINDIR)*
+	rm -f $(FNMA_LIBDIR)*.a
+	rm -f $(FNMA_MODDIR)*.mod
+	rm -f $(FNMA_SRCDIR)*.o
+	rm -f $(FNMA_EXADIR)*.o
+	rm -f $(FNMA_EXASRCDIR)*.o
 
 # Dependency on build tree existence
-$(SLS_OBJS): | $(SLS_BUILDDIRS)
+$(FNMA_OBJS): | $(FNMA_BUILDDIRS)
 
-$(SLS_BUILDDIRS):
+$(FNMA_BUILDDIRS):
 	mkdir -p $@
 
 .PHONY: clean
