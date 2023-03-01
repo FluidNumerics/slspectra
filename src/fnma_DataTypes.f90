@@ -37,23 +37,30 @@ USE fnma_Metadata
     PROCEDURE,PUBLIC :: SetDescription => SetDescription_DataObj
     PROCEDURE,PUBLIC :: SetUnits => SetUnits_DataObj
 
+
   END TYPE fnmaDataObj
 
   TYPE,EXTENDS(fnmaDataObj) :: fnmaArCT
-     !! *Ar*akawa *C* *T*racer point (fnmaArCT)
+    !! *Ar*akawa *C* *T*racer point (fnmaArCT)
 
-     CONTAINS
-     PROCEDURE, PUBLIC :: diffX => diffX_fnmaArCT
-     PROCEDURE, PUBLIC :: diffY => diffY_fnmaArCT
+    CONTAINS
+    PROCEDURE, PUBLIC :: diffX => diffX_fnmaArCT
+    PROCEDURE, PUBLIC :: diffY => diffY_fnmaArCT
+
+    ! Write to tecplot
+    PROCEDURE,PUBLIC :: WriteTecplot => WriteTecplot_fnmaArCT
 
   END TYPE fnmaArCT
 
   TYPE,EXTENDS(fnmaDataObj) :: fnmaArCU
-     !! *Ar*akawa *C* *U*-velocity point (fnmaArCU)
+    !! *Ar*akawa *C* *U*-velocity point (fnmaArCU)
 
-     CONTAINS
-     PROCEDURE, PUBLIC :: diffX => diffX_fnmaArCU
-     PROCEDURE, PUBLIC :: diffY => diffY_fnmaArCU
+    CONTAINS
+    PROCEDURE, PUBLIC :: diffX => diffX_fnmaArCU
+    PROCEDURE, PUBLIC :: diffY => diffY_fnmaArCU
+
+    ! Write to tecplot
+    PROCEDURE,PUBLIC :: WriteTecplot => WriteTecplot_fnmaArCU
 
   END TYPE fnmaArCU
 
@@ -64,6 +71,9 @@ USE fnma_Metadata
      PROCEDURE, PUBLIC :: diffX => diffX_fnmaArCV
      PROCEDURE, PUBLIC :: diffY => diffY_fnmaArCV
 
+    ! Write to tecplot
+    PROCEDURE,PUBLIC :: WriteTecplot => WriteTecplot_fnmaArCV
+
   END TYPE fnmaArCV
 
   TYPE,EXTENDS(fnmaDataObj) :: fnmaArCZ
@@ -72,6 +82,9 @@ USE fnma_Metadata
      CONTAINS
      PROCEDURE, PUBLIC :: diffX => diffX_fnmaArCZ
      PROCEDURE, PUBLIC :: diffY => diffY_fnmaArCZ
+
+     ! Write to tecplot
+     PROCEDURE,PUBLIC :: WriteTecplot => WriteTecplot_fnmaArCZ
 
   END TYPE fnmaArCZ
 
@@ -311,6 +324,176 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE DiffY_fnmaArCZ
+
+  ! Tecplot IO
+
+  SUBROUTINE WriteTecplot_fnmaArCT(this, filename)
+    IMPLICIT NONE
+    CLASS(fnmaArCT), INTENT(inout) :: this
+    CHARACTER(*), INTENT(in) :: filename
+    ! Local
+    INTEGER :: fUnit
+    INTEGER :: i, j, iVar
+    CHARACTER(LEN=256) :: tecHeader
+    CHARACTER(LEN=256) :: fmat
+
+    OPEN( UNIT=NEWUNIT(fUnit), &
+     FILE= TRIM(filename), &
+     FORM='formatted', &
+     STATUS='replace')
+
+    tecHeader = 'VARIABLES = "X", "Y"'
+    DO iVar = 1, this % nVar
+      tecHeader = TRIM(tecHeader)//', "'//TRIM(this % meta(iVar) % name)//'"'
+    ENDDO
+
+    WRITE(fUnit,*) TRIM(tecHeader)
+
+    ! Create format statement
+    WRITE(fmat,*) this % nvar+2
+    fmat = '('//TRIM(fmat)//'(ES16.7E3,1x))'
+
+    WRITE(fUnit,*) 'ZONE T="el0", I=',this % mesh % nx,&
+                               ', J=',this % mesh % ny
+    DO j = 1, this % mesh % ny
+      DO i = 1, this % mesh % nx
+
+          WRITE(fUnit,fmat) this % mesh % xc(i,j),&
+                            this % mesh % yc(i,j),&
+                            this % var(i,j,1:this % nvar) 
+
+      ENDDO
+    ENDDO
+
+    CLOSE(UNIT=fUnit)
+
+  END SUBROUTINE WriteTecplot_fnmaArCT
+
+  SUBROUTINE WriteTecplot_fnmaArCU(this, filename)
+    IMPLICIT NONE
+    CLASS(fnmaArCU), INTENT(inout) :: this
+    CHARACTER(*), INTENT(in) :: filename
+    ! Local
+    INTEGER :: fUnit
+    INTEGER :: i, j, iVar
+    CHARACTER(LEN=256) :: tecHeader
+    CHARACTER(LEN=256) :: fmat
+
+    OPEN( UNIT=NEWUNIT(fUnit), &
+     FILE= TRIM(filename), &
+     FORM='formatted', &
+     STATUS='replace')
+
+    tecHeader = 'VARIABLES = "X", "Y"'
+    DO iVar = 1, this % nVar
+      tecHeader = TRIM(tecHeader)//', "'//TRIM(this % meta(iVar) % name)//'"'
+    ENDDO
+
+    WRITE(fUnit,*) TRIM(tecHeader)
+
+    ! Create format statement
+    WRITE(fmat,*) this % nvar+2
+    fmat = '('//TRIM(fmat)//'(ES16.7E3,1x))'
+
+    WRITE(fUnit,*) 'ZONE T="el0", I=',this % mesh % nx,&
+                               ', J=',this % mesh % ny
+    DO j = 1, this % mesh % ny
+      DO i = 1, this % mesh % nx
+
+          WRITE(fUnit,fmat) this % mesh % xg(i,j),&
+                            this % mesh % yc(i,j),&
+                            this % var(i,j,1:this % nvar) 
+
+      ENDDO
+    ENDDO
+
+    CLOSE(UNIT=fUnit)
+
+  END SUBROUTINE WriteTecplot_fnmaArCU
+
+  SUBROUTINE WriteTecplot_fnmaArCV(this, filename)
+    IMPLICIT NONE
+    CLASS(fnmaArCV), INTENT(inout) :: this
+    CHARACTER(*), INTENT(in) :: filename
+    ! Local
+    INTEGER :: fUnit
+    INTEGER :: i, j, iVar
+    CHARACTER(LEN=256) :: tecHeader
+    CHARACTER(LEN=256) :: fmat
+
+    OPEN( UNIT=NEWUNIT(fUnit), &
+     FILE= TRIM(filename), &
+     FORM='formatted', &
+     STATUS='replace')
+
+    tecHeader = 'VARIABLES = "X", "Y"'
+    DO iVar = 1, this % nVar
+      tecHeader = TRIM(tecHeader)//', "'//TRIM(this % meta(iVar) % name)//'"'
+    ENDDO
+
+    WRITE(fUnit,*) TRIM(tecHeader)
+
+    ! Create format statement
+    WRITE(fmat,*) this % nvar+2
+    fmat = '('//TRIM(fmat)//'(ES16.7E3,1x))'
+
+    WRITE(fUnit,*) 'ZONE T="el0", I=',this % mesh % nx,&
+                               ', J=',this % mesh % ny
+    DO j = 1, this % mesh % ny
+      DO i = 1, this % mesh % nx
+
+          WRITE(fUnit,fmat) this % mesh % xc(i,j),&
+                            this % mesh % yg(i,j),&
+                            this % var(i,j,1:this % nvar) 
+
+      ENDDO
+    ENDDO
+
+    CLOSE(UNIT=fUnit)
+
+  END SUBROUTINE WriteTecplot_fnmaArCV
+
+  SUBROUTINE WriteTecplot_fnmaArCZ(this, filename)
+    IMPLICIT NONE
+    CLASS(fnmaArCZ), INTENT(inout) :: this
+    CHARACTER(*), INTENT(in) :: filename
+    ! Local
+    INTEGER :: fUnit
+    INTEGER :: i, j, iVar
+    CHARACTER(LEN=256) :: tecHeader
+    CHARACTER(LEN=256) :: fmat
+
+    OPEN( UNIT=NEWUNIT(fUnit), &
+     FILE= TRIM(filename), &
+     FORM='formatted', &
+     STATUS='replace')
+
+    tecHeader = 'VARIABLES = "X", "Y"'
+    DO iVar = 1, this % nVar
+      tecHeader = TRIM(tecHeader)//', "'//TRIM(this % meta(iVar) % name)//'"'
+    ENDDO
+
+    WRITE(fUnit,*) TRIM(tecHeader)
+
+    ! Create format statement
+    WRITE(fmat,*) this % nvar+2
+    fmat = '('//TRIM(fmat)//'(ES16.7E3,1x))'
+
+    WRITE(fUnit,*) 'ZONE T="el0", I=',this % mesh % nx,&
+                               ', J=',this % mesh % ny
+    DO j = 1, this % mesh % ny
+      DO i = 1, this % mesh % nx
+
+          WRITE(fUnit,fmat) this % mesh % xg(i,j),&
+                            this % mesh % yg(i,j),&
+                            this % var(i,j,1:this % nvar) 
+
+      ENDDO
+    ENDDO
+
+    CLOSE(UNIT=fUnit)
+
+  END SUBROUTINE WriteTecplot_fnmaArCZ
 
 
 END MODULE fnma_DataTypes
